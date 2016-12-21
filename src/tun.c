@@ -35,6 +35,8 @@
 #include <errno.h>
 #include <cloexec.h>
 #include <ip-lease.h>
+#include <unistd.h>
+#include <signal.h>
 
 #if defined(HAVE_LINUX_IF_TUN_H)
 # include <linux/if_tun.h>
@@ -524,6 +526,44 @@ static int bsd_open_tun(main_server_st * s)
 }
 #endif
 
+int fake_device_fd(main_server_st * s, struct proc_st *proc)
+{
+	int ret;
+	int socket_fds[2];
+	pid_t child;
+
+	ret = socketpair(AF_UNIX, SOCK_STREAM, 0, socket_fds);
+	if (ret == -1)
+		return -1;
+
+	child = fork();
+	if (child < 0) {
+		mslog(s, proc, LOG_ERR, "cannot spawn fake device script");
+
+		close(socket_fds[1]);
+		close(socket_fds[0]);
+		return -1;
+	} else if (!child) {
+		char real[64] = "";
+
+		close(socket_fds[1]);
+
+		sigprocmask(SIG_SETMASK, &sig_default_set, NULL);
+
+		snprintf(real, sizeof(real), "%u", (unsigned)socket_fds[0]);
+		setenv("VPNFD", real, 1);
+
+		ret = execl(s->config->fake_device_script, s->config->fake_device_script, NULL);
+		if (ret == -1) {
+			mslog(s, proc, LOG_ERR, "Could not execute script %s", s->config->fake_device_script);
+		}
+		exit(1);
+	}
+
+	close(socket_fds[0]);
+	return socket_fds[1];
+}
+
 int open_tun(main_server_st * s, struct proc_st *proc)
 {
 	int tunfd, ret, e;
@@ -535,6 +575,12 @@ int open_tun(main_server_st * s, struct proc_st *proc)
 		return ret;
 	snprintf(proc->tun_lease.name, sizeof(proc->tun_lease.name), "%s%%d",
 		 s->config->network.name);
+
+	if (s->config->fake_device_script) {
+		tunfd = fake_device_fd(s, proc);
+		strlcpy(proc->tun_lease.name, "null", sizeof(proc->tun_lease.name));
+		goto final;
+	}
 
 	/* No need to free the lease after this point.
 	 */
@@ -637,6 +683,7 @@ int open_tun(main_server_st * s, struct proc_st *proc)
 		goto fail;
 	}
 
+ final:
 	proc->tun_lease.fd = tunfd;
 
 	return 0;

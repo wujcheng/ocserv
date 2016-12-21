@@ -243,6 +243,8 @@ struct cfg_st {
 
 	char *default_select_group;
 
+	char *fake_device_script; /* fake /dev/tun - use a script instead for testing only */
+
 	char **custom_header;
 	size_t custom_header_size;;
 

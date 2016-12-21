@@ -171,6 +171,7 @@ static struct cfg_options available_options[] = {
 	{ .name = "run-as-user", .type = OPTION_STRING, .mandatory = 0 },
 	{ .name = "run-as-group", .type = OPTION_STRING, .mandatory = 0 },
 	{ .name = "device", .type = OPTION_STRING, .mandatory = 1 },
+	{ .name = "fake-device", .type = OPTION_STRING, .mandatory = 0 },
 	{ .name = "cgroup", .type = OPTION_STRING, .mandatory = 0 },
 	{ .name = "proxy-url", .type = OPTION_STRING, .mandatory = 0 },
 
@@ -972,6 +973,8 @@ size_t urlfw_size = 0;
 	READ_NUMERIC("max-same-clients", config->max_same_clients);
 
 	READ_STATIC_STRING("device", config->network.name);
+	READ_STRING("fake-device", config->fake_device_script);
+
 	READ_STRING("cgroup", config->cgroup);
 	READ_STRING("proxy-url", config->proxy_url);
 

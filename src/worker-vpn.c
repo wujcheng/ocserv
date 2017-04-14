@@ -2325,7 +2325,7 @@ static int parse_data(struct worker_st *ws, uint8_t *buf, size_t buf_size,
 	case AC_PKT_DATA:
 		oclog(ws, LOG_TRANSFER_DEBUG, "writing %d byte(s) to TUN",
 		      (int)plain_size);
-		ret = tun_write(ws->tun_fd, plain, plain_size);
+		ret = tun_write(ws, ws->tun_fd, plain, plain_size);
 		if (ret == -1) {
 			e = errno;
 			oclog(ws, LOG_ERR, "could not write data to tun: %s",

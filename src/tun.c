@@ -735,7 +735,7 @@ void reset_tun(struct proc_st* proc)
 #if defined(__OpenBSD__) || defined(TUNSIFHEAD)
 # define TUN_AF_PREFIX 1
 #endif
-ssize_t tun_write(int sockfd, const void *buf, size_t len)
+ssize_t tun_write(worker_st *ws, int sockfd, const void *buf, size_t len)
 {
 #ifdef TUN_AF_PREFIX
 	struct ip *iph = (void *)buf;
@@ -752,7 +752,7 @@ ssize_t tun_write(int sockfd, const void *buf, size_t len)
 	else {
 		if (!complained) {
 			complained = 1;
-			syslog(LOG_ERR, "tun_write: Unknown packet (len %d) received %02x %02x %02x %02x...\n",
+			oclog(ws, LOG_ERR, "tun_write: Unknown packet (len %d) received %02x %02x %02x %02x...\n",
 				(int)len, data[0], data[1], data[2], data[3]);
 		}
 		return -1;

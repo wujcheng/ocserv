@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2013-2016 Nikos Mavrogiannopoulos
- * Copyright (C) 2015-2016 Red Hat, Inc.
+ * Copyright (C) 2013-2017 Nikos Mavrogiannopoulos
+ * Copyright (C) 2015-2017 Red Hat, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -1307,7 +1307,10 @@ int main(int argc, char** argv)
 	if (s->perm_config->debug != 0)
 		flags |= LOG_PERROR;
 #endif
+
+#ifndef HAVE_LIBSYSTEMD
 	openlog("ocserv", flags, LOG_DAEMON);
+#endif
 	syslog_open = 1;
 #ifdef HAVE_LIBWRAP
 	allow_severity = LOG_DAEMON|LOG_INFO;
@@ -1445,7 +1448,9 @@ int main(int argc, char** argv)
 	clear_cfg(s->perm_config);
 	talloc_free(s->perm_config);
 	talloc_free(s->main_pool);
+#ifndef HAVE_LIBSYSTEMD
 	closelog();
+#endif
 
 	return 0;
 }

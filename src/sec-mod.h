@@ -129,20 +129,24 @@ void del_client_entry(sec_mod_st *sec, client_entry_st * e);
 void expire_client_entry(sec_mod_st *sec, client_entry_st * e);
 void cleanup_client_entries(sec_mod_st *sec);
 
-#ifdef __GNUC__
-# define seclog(sec, prio, fmt, ...) \
-	if (prio != LOG_DEBUG || sec->perm_config->debug >= 3) { \
-		syslog(prio, "sec-mod: "fmt, ##__VA_ARGS__); \
-	}
+#ifdef HAVE_LIBSYSTEMD
+# include <systemd/sd-journal.h>
+
+# define seclog(sec,prio,fmt,...) \
+	sd_journal_print(prio, fmt, ##__VA_ARGS__)
 #else
-# define seclog(sec,prio,...) \
-	if (prio != LOG_DEBUG || sec->config->debug >= 3) { \
-		 syslog(prio, __VA_ARGS__); \
+# define seclog(sec,prio,fmt,...) \
+	if (prio != LOG_DEBUG || sec->perm_config->debug >= 3) { \
+		 syslog(prio, fmt, ##__VA_ARGS__); \
 	}
 #endif
 
-void  seclog_hex(const struct sec_mod_st* sec, int priority,
+void _seclog_hex(const struct sec_mod_st* sec, int priority,
+		const char *file, const char *func, unsigned line,
 		const char *prefix, uint8_t* bin, unsigned bin_size, unsigned b64);
+
+# define seclog_hex(sec, prio, prefix, bin, bin_size, b64) \
+	_seclog_hex(sec, prio, __FILE__, __func__, __LINE__, prefix, bin, bin_size, b64)
 
 void sec_auth_init(sec_mod_st *sec, struct perm_cfg_st *config);
 

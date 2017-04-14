@@ -35,7 +35,6 @@
 #include <sys/ioctl.h>
 #include <sys/un.h>
 #include <common.h>
-#include <syslog.h>
 #include <vpn.h>
 #include <base64-helper.h>
 #include <tlslib.h>

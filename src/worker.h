@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013-2016 Nikos Mavrogiannopoulos
+ * Copyright (C) 2013-2017 Nikos Mavrogiannopoulos
  *
  * Author: Nikos Mavrogiannopoulos
  *
@@ -22,7 +22,6 @@
 #define WORKER_H
 
 #include <config.h>
-#include <syslog.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 
@@ -312,24 +311,24 @@ int get_cert_names(worker_st * ws, const gnutls_datum_t * raw);
 
 void set_resume_db_funcs(gnutls_session_t);
 
+void __attribute__ ((format(printf, 6, 7)))
+    _oclog(const worker_st * server, int priority, const char *file,
+    const char *func, unsigned line, const char *fmt, ...);
 
-void __attribute__ ((format(printf, 3, 4)))
-    _oclog(const worker_st * server, int priority, const char *fmt, ...);
+
+void _oclog_hex(const worker_st* ws, int priority,
+		const char *file, const char *func, unsigned line,
+		const char *prefix, uint8_t* bin, unsigned bin_size, unsigned b64);
 
 #ifdef UNDER_TEST
 # define oclog(...)
+# define oclog_hex(...)
 #else
-# ifdef __GNUC__
-#  define oclog(server, prio, fmt, ...) \
-	(prio==LOG_ERR)?_oclog(server, prio, "%s:%d: "fmt, __FILE__, __LINE__, ##__VA_ARGS__): \
-	_oclog(server, prio, fmt, ##__VA_ARGS__)
-# else
-#  define oclog _oclog
-# endif
+# define oclog(ws, prio, fmt, ...) \
+	_oclog(ws, prio, __FILE__, __func__, __LINE__, fmt, ##__VA_ARGS__)
+# define oclog_hex(ws, prio, prefix, bin, bin_size, b64) \
+	_oclog_hex(ws, prio, __FILE__, __func__, __LINE__, prefix, bin, bin_size, b64)
 #endif
-
-void  oclog_hex(const worker_st* ws, int priority,
-		const char *prefix, uint8_t* bin, unsigned bin_size, unsigned b64);
 
 typedef int (*url_handler_fn) (worker_st *, unsigned http_ver);
 int http_url_cb(http_parser * parser, const char *at, size_t length);

@@ -22,6 +22,7 @@
 # define TUN_H
 
 #include <vpn.h>
+#include "worker.h"
 #include <string.h>
 #include <ccan/list/list.h>
 
@@ -33,7 +34,7 @@ struct tun_lease_st {
 	int fd;
 };
 
-ssize_t tun_write(int sockfd, const void *buf, size_t len);
+ssize_t tun_write(struct worker_st *ws, int sockfd, const void *buf, size_t len);
 ssize_t tun_read(int sockfd, void *buf, size_t len);
 
 #endif

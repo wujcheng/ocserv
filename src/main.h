@@ -258,27 +258,28 @@ int session_close(main_server_st * s, struct proc_st *proc);
 #ifdef UNDER_TEST
 /* for testing */
 # define mslog(...)
+# define mslog_hex(...)
 
 #else
 
-void 
-__attribute__ ((format(printf, 4, 5)))
-    _mslog(const main_server_st * s, const struct proc_st* proc,
-    	int priority, const char *fmt, ...);
+void _mslog_hex(const main_server_st * s, const struct proc_st* proc,
+    	int priority, const char *file, const char *func, unsigned line,
+    	const char *prefix, uint8_t* bin, unsigned bin_size, unsigned b64);
 
-# ifdef __GNUC__
-#  define mslog(s, proc, prio, fmt, ...) \
-	(prio==LOG_ERR)?_mslog(s, proc, prio, "%s:%d: "fmt, __FILE__, __LINE__, ##__VA_ARGS__): \
-	_mslog(s, proc, prio, fmt, ##__VA_ARGS__)
-# else
-#  define mslog _mslog
-# endif
+void 
+__attribute__ ((format(printf, 7, 8)))
+    _mslog(const main_server_st * s, const struct proc_st* proc,
+    	int priority, const char *file, const char *func, unsigned line,
+    	const char *fmt, ...);
+
+# define mslog(s, proc, prio, fmt, ...) \
+	_mslog(s, proc, prio, __FILE__, __func__, __LINE__, fmt, ##__VA_ARGS__)
+# define mslog_hex(s, proc, prio, prefix, bin, bin_size, b64) \
+	_mslog_hex(s, proc, prio, __FILE__, __func__, __LINE__, prefix, bin, bin_size, b64)
 
 #endif
 
 
-void  mslog_hex(const main_server_st * s, const struct proc_st* proc,
-    	int priority, const char *prefix, uint8_t* bin, unsigned bin_size, unsigned b64);
 
 int open_tun(main_server_st* s, struct proc_st* proc);
 void close_tun(main_server_st* s, struct proc_st* proc);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Nikos Mavrogiannopoulos
+ * Copyright (C) 2013-2017 Nikos Mavrogiannopoulos
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,9 +30,15 @@
 #include <main.h>
 #include <sec-mod.h>
 
+#ifdef HAVE_LIBSYSTEMD
+# include <systemd/sd-journal.h>
+#endif
 
-void __attribute__ ((format(printf, 3, 4)))
-    _oclog(const worker_st * ws, int priority, const char *fmt, ...)
+
+void __attribute__ ((format(printf, 6, 7)))
+    _oclog(const worker_st * ws,
+	   int priority, const char *file, const char *func, unsigned line, 
+	   const char *fmt, ...)
 {
 	char buf[512];
 	const char* ip;
@@ -64,6 +70,17 @@ void __attribute__ ((format(printf, 3, 4)))
 	vsnprintf(buf, sizeof(buf), fmt, args);
 	va_end(args);
 
+#ifdef HAVE_LIBSYSTEMD
+	sd_journal_send("MESSAGE=%s", buf,
+		"PRIORITY=%i", (int)priority,
+		"CODE_FILE=%s", file,
+		"CODE_LINE=%d", (int)line,
+		"CODE_FUNC=%s", func,
+		"PROCESS=worker",
+		"CLIENT_IP=%s", ip!=NULL?ip:"[unknown]",
+		"CLIENT_USERNAME=%s", ws->username,
+		NULL);
+#else
 	if (ip) {
 		if (ws->username[0] == 0)
 			syslog(priority, "worker: %s %s", ip, buf);
@@ -72,14 +89,16 @@ void __attribute__ ((format(printf, 3, 4)))
 	} else {
 		syslog(priority, "worker: [unknown] %s", buf);
 	}
+#endif
 
 	return;
 }
 
 /* proc is optional */
-void __attribute__ ((format(printf, 4, 5)))
+void __attribute__ ((format(printf, 7, 8)))
     _mslog(const main_server_st * s, const struct proc_st* proc,
-    	int priority, const char *fmt, ...)
+    	int priority, const char *file, const char *func, unsigned line,
+    	const char *fmt, ...)
 {
 	char buf[512];
 	char ipbuf[128];
@@ -110,6 +129,17 @@ void __attribute__ ((format(printf, 4, 5)))
 	vsnprintf(buf, sizeof(buf), fmt, args);
 	va_end(args);
 
+#ifdef HAVE_LIBSYSTEMD
+	sd_journal_send("MESSAGE=%s", buf,
+		"PRIORITY=%i", (int)priority,
+		"CODE_FILE=%s", file,
+		"CODE_LINE=%d", (int)line,
+		"CODE_FUNC=%s", func,
+		"PROCESS=master",
+		"CLIENT_IP=%s", ip!=NULL?ip:"",
+		"CLIENT_USERNAME=%s", (proc!=NULL&&proc->username!=NULL)?proc->username:"",
+		NULL);
+#else
 	if (ip) {
 		if (proc->username[0] == 0)
 			syslog(priority, "main: %s %s", ip, buf);
@@ -118,12 +148,14 @@ void __attribute__ ((format(printf, 4, 5)))
 	} else {
 		syslog(priority, "main: %s", buf);
 	}
+#endif
 
 	return;
 }
 
-void  mslog_hex(const main_server_st * s, const struct proc_st* proc,
-    	int priority, const char *prefix, uint8_t* bin, unsigned bin_size, unsigned b64)
+void _mslog_hex(const main_server_st * s, const struct proc_st* proc,
+    	int priority, const char *file, const char *func, unsigned line,
+    	const char *prefix, uint8_t* bin, unsigned bin_size, unsigned b64)
 {
 	char buf[512];
 	int ret;
@@ -142,13 +174,14 @@ void  mslog_hex(const main_server_st * s, const struct proc_st* proc,
 			return;
 	}
 
-	_mslog(s, proc, priority, "%s %s", prefix, buf);
+	_mslog(s, proc, priority, file, func, line, "%s %s", prefix, buf);
 
 	return;
 }
 
-void  oclog_hex(const worker_st* ws, int priority,
-		const char *prefix, uint8_t* bin, unsigned bin_size, unsigned b64)
+void _oclog_hex(const worker_st* ws,
+	int priority, const char *file, const char *func, unsigned line,
+	const char *prefix, uint8_t* bin, unsigned bin_size, unsigned b64)
 {
 	char buf[512];
 	int ret;
@@ -167,12 +200,13 @@ void  oclog_hex(const worker_st* ws, int priority,
 			return;
 	}
 
-	_oclog(ws, priority, "%s %s", prefix, buf);
+	_oclog(ws, priority, file, func, line, "%s %s", prefix, buf);
 
 	return;
 }
 
-void  seclog_hex(const struct sec_mod_st* sec, int priority,
+void _seclog_hex(const struct sec_mod_st *sec, int priority,
+		const char *file, const char *func, unsigned line,
 		const char *prefix, uint8_t* bin, unsigned bin_size, unsigned b64)
 {
 	char buf[512];

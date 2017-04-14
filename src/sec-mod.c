@@ -35,7 +35,6 @@
 #include <sys/ioctl.h>
 #include <sys/un.h>
 #include <common.h>
-#include <syslog.h>
 #include <vpn.h>
 #include <sec-mod.h>
 #include <tlslib.h>
@@ -56,6 +55,7 @@ static int need_reload = 0;
 static int need_exit = 0;
 
 struct pin_st {
+	sec_mod_st *sec;
 	char pin[MAX_PIN_SIZE];
 	char srk_pin[MAX_PIN_SIZE];
 };
@@ -73,20 +73,20 @@ int pin_callback(void *user, int attempt, const char *token_url,
 	unsigned len;
 
 	if (flags & GNUTLS_PIN_FINAL_TRY) {
-		syslog(LOG_ERR,
+		seclog(ps->sec, LOG_ERR,
 		       "PIN callback: final try before locking; not attempting to unlock");
 		return -1;
 	}
 
 	if (flags & GNUTLS_PIN_WRONG) {
-		syslog(LOG_ERR,
+		seclog(ps->sec, LOG_ERR,
 		       "PIN callback: wrong PIN was entered for '%s' (%s)",
 		       token_label, token_url);
 		return -1;
 	}
 
 	if (ps->pin[0] == 0) {
-		syslog(LOG_ERR,
+		seclog(ps->sec, LOG_ERR,
 		       "PIN required for '%s' but pin-file was not set",
 		       token_label);
 		return -1;
@@ -100,7 +100,7 @@ int pin_callback(void *user, int attempt, const char *token_url,
 	}
 
 	if (srk != 0 && ps->srk_pin[0] == 0) {
-		syslog(LOG_ERR,
+		seclog(ps->sec, LOG_ERR,
 		       "PIN required for '%s' but srk-pin-file was not set",
 		       token_label);
 		return -1;
@@ -108,7 +108,7 @@ int pin_callback(void *user, int attempt, const char *token_url,
 
 	len = strlen(p);
 	if (len > pin_max - 1) {
-		syslog(LOG_ERR, "Too long PIN (%u chars)", len);
+		seclog(ps->sec, LOG_ERR, "Too long PIN (%u chars)", len);
 		return -1;
 	}
 
@@ -129,7 +129,7 @@ int load_pins(struct perm_cfg_st *config, struct pin_st *s)
 	if (config->srk_pin_file != NULL) {
 		fd = open(config->srk_pin_file, O_RDONLY);
 		if (fd < 0) {
-			syslog(LOG_ERR, "could not open SRK PIN file '%s'",
+			seclog(ps->sec, LOG_ERR, "could not open SRK PIN file '%s'",
 			       config->srk_pin_file);
 			return -1;
 		}
@@ -137,7 +137,7 @@ int load_pins(struct perm_cfg_st *config, struct pin_st *s)
 		ret = read(fd, s->srk_pin, sizeof(s->srk_pin) - 1);
 		close(fd);
 		if (ret <= 1) {
-			syslog(LOG_ERR, "could not read from PIN file '%s'",
+			seclog(ps->sec, LOG_ERR, "could not read from PIN file '%s'",
 			       config->srk_pin_file);
 			return -1;
 		}
@@ -150,7 +150,7 @@ int load_pins(struct perm_cfg_st *config, struct pin_st *s)
 	if (config->pin_file != NULL) {
 		fd = open(config->pin_file, O_RDONLY);
 		if (fd < 0) {
-			syslog(LOG_ERR, "could not open PIN file '%s'",
+			seclog(ps->sec, LOG_ERR, "could not open PIN file '%s'",
 			       config->pin_file);
 			return -1;
 		}
@@ -158,7 +158,7 @@ int load_pins(struct perm_cfg_st *config, struct pin_st *s)
 		ret = read(fd, s->pin, sizeof(s->pin) - 1);
 		close(fd);
 		if (ret <= 1) {
-			syslog(LOG_ERR, "could not read from PIN file '%s'",
+			seclog(ps->sec, LOG_ERR, "could not read from PIN file '%s'",
 			       config->pin_file);
 			return -1;
 		}
@@ -689,6 +689,7 @@ static int load_keys(sec_mod_st *sec, unsigned force)
 
 	last_access = time(0);
 
+	pins.sec = sec;
 	ret = load_pins(sec->perm_config, &pins);
 	if (ret < 0) {
 		seclog(sec, LOG_ERR, "error loading PIN files");

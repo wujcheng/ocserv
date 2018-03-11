@@ -1,6 +1,9 @@
-image: centos:7
+stages:
+ - testing
+ - deploy
 
 Build/Debian:
+  stage: testing
   image: debian:stretch
   script:
   - apt-get update
@@ -19,13 +22,14 @@ Build/Debian:
       - ./tests/*.log
 
 Build/Centos7:
+  stage: testing
+  image: centos:7
   script:
   - yum install -y epel-release
 # not installing gssntlmssp as only kerberos seems to work reliably
   - yum install -y GeoIP-devel openconnect make git which xz autoconf libtool automake gettext-devel  gnutls-devel libev-devel tcp_wrappers-devel pam-devel lz4-devel libseccomp-devel readline-devel libnl3-devel krb5-devel liboath-devel radcli-devel protobuf-c-devel libtalloc-devel http-parser-devel pcllib-devel protobuf-c gperf lockfile-progs nuttcp lcov uid_wrapper pam_wrapper nss_wrapper socket_wrapper pam_oath gnutls-utils
   - git submodule update --init && autoreconf -fvi &&
-    ./configure --without-docker-tests --enable-code-coverage && make -j$(nproc) && make check -j$(nproc) && make code-coverage-capture &&
-    make local-code-coverage-output
+    ./configure --without-docker-tests && make -j$(nproc) && make check -j$(nproc)
   tags:
   - shared
   except:
@@ -38,22 +42,22 @@ Build/Centos7:
       - ./tests/*.log
 
 Build/Fedora27:
+  stage: testing
   image: fedora:27
   script:
   - dnf install -y GeoIP-devel openconnect make git which xz autoconf libtool automake gettext-devel gnutls-devel libev-devel tcp_wrappers-devel pam-devel lz4-devel libseccomp-devel readline-devel libnl3-devel krb5-devel liboath-devel radcli-devel protobuf-c-devel libtalloc-devel http-parser-devel pcllib-devel protobuf-c gperf lockfile-progs nuttcp lcov uid_wrapper pam_wrapper nss_wrapper socket_wrapper gssntlmssp pam_oath gnutls-utils git2cl rubygem-ronn
   - git submodule update --init && autoreconf -fvi &&
-    ./configure --without-docker-tests --with-werror --enable-code-coverage && make -j$(nproc) && make check -j$(nproc) && make code-coverage-capture &&
+    ./configure --disable-maintainer-mode --without-docker-tests --with-werror --enable-code-coverage && make -j$(nproc) && make check
+    && make code-coverage-capture &&
     make local-code-coverage-output && make files-update && make dist
   tags:
   - shared
   except:
   - tags
   artifacts:
-    expire_in: 1 week
-    when: on_failure
-    paths:
-      - ./*.log
-      - ./tests/*.log
+    expire_in: 1 day
+    untracked: true
+    when: always
 
 #Build/Fedora-rawhide:
 #  image: fedora:rawhide
@@ -74,6 +78,7 @@ Build/Fedora27:
 #      - ./tests/*.log
 
 Build/Centos6:
+  stage: testing
   image: centos:6
   script:
   - yum install -y epel-release
@@ -93,10 +98,12 @@ Build/Centos6:
       - ./tests/*.log
 
 Build/minimal:
+  stage: testing
+  image: centos:7
   script:
   - yum install -y epel-release
   - yum install -y openconnect git make which xz autoconf libtool automake gettext-devel gnutls-devel libev-devel tcp_wrappers-devel pam-devel lz4-devel libseccomp-devel readline-devel libnl3-devel krb5-devel liboath-devel radcli-devel protobuf-c-devel libtalloc-devel http-parser-devel pcllib-devel protobuf-c gperf lockfile-progs nuttcp lcov uid_wrapper pam_wrapper nss_wrapper socket_wrapper gssntlmssp pam_oath gnutls-utils
-  - git submodule update --init && autoreconf -fvi && 
+  - git submodule update --init && autoreconf -fvi &&
     ./configure --without-docker-tests --without-libnl --without-liboath --without-pam --without-radius --without-utmp --without-libwrap --without-http-parser --without-lz4 --without-gssapi --without-pcl-lib --without-protobuf && make -j$(nproc) && make check -j$(nproc)
   tags:
   - shared
@@ -110,11 +117,13 @@ Build/minimal:
       - tests/*.log
 
 asan/Fedora:
+  stage: testing
   image: fedora:27
   script:
   - dnf install -y openconnect git which make xz autoconf libtool automake gettext-devel libasan-static libasan gnutls-devel libev-devel tcp_wrappers-devel pam-devel lz4-devel libseccomp-devel readline-devel libnl3-devel krb5-devel liboath-devel radcli-devel protobuf-c-devel libtalloc-devel http-parser-devel pcllib-devel protobuf-c gperf lockfile-progs nuttcp lcov uid_wrapper pam_wrapper nss_wrapper socket_wrapper gssntlmssp pam_oath gnutls-utils
   - git submodule update --init && autoreconf -fvi && CFLAGS="-fsanitize=address -g -O2" LDFLAGS="-static-libasan" &&
     ./configure --without-docker-tests && make -j$(nproc) && make check -j$(nproc)
+
   tags:
   - shared
   except:
@@ -127,6 +136,7 @@ asan/Fedora:
       - tests/*.log
 
 static-analyzers/Fedora:
+  stage: testing
   image: fedora:27
   script:
   - dnf install -y openconnect git which make xz autoconf libtool automake gettext-devel gnutls-devel libev-devel tcp_wrappers-devel pam-devel lz4-devel libseccomp-devel readline-devel libnl3-devel krb5-devel liboath-devel radcli-devel protobuf-c-devel libtalloc-devel http-parser-devel pcllib-devel protobuf-c clang clang-analyzer cppcheck gperf
@@ -145,6 +155,7 @@ static-analyzers/Fedora:
       - scan-build-src/*
 
 Build/FreeBSD:
+  stage: testing
   script:
   - git submodule update --init && sh autogen.sh && mkdir build
   - cd build && LIBS="-L/usr/local/lib" ../configure --disable-nls --without-root-tests &&
@@ -161,3 +172,18 @@ Build/FreeBSD:
     paths:
       - build/*.log
       - build/tests/*.log
+
+pages:
+  stage: deploy
+  script:
+    mkdir -p public/coverage && make V=1 CODE_COVERAGE_OUTPUT_DIRECTORY=public/coverage CODE_COVERAGE_BRANCH_COVERAGE=1 code-coverage-capture &&
+    make CODE_COVERAGE_OUTPUT_DIRECTORY=public/coverage local-code-coverage-output
+  tags:
+  - shared
+  dependencies:
+  - Build/Fedora27
+#  only:
+#  - master
+  artifacts:
+    paths:
+    - public

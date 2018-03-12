@@ -2,12 +2,17 @@ stages:
  - testing
  - deploy
 
+variables:
+  BUILD_IMAGES_PROJECT: ocserv/build-images
+  DEBIAN_BUILD: buildenv-debian-stretch
+  FEDORA_BUILD: buildenv-fedora
+  CENTOS7_BUILD: buildenv-centos7
+  CENTOS6_BUILD: buildenv-centos6
+
 Build/Debian:
   stage: testing
-  image: debian:stretch
+  image: $CI_REGISTRY/$BUILD_IMAGES_PROJECT:$DEBIAN_BUILD
   script:
-  - apt-get update
-  - apt-get install -y ruby-ronn openconnect libuid-wrapper libpam-wrapper libnss-wrapper libsocket-wrapper gss-ntlmssp git-core make autoconf libtool autopoint gettext automake nettle-dev libwrap0-dev libpam0g-dev liblz4-dev libseccomp-dev libreadline-dev libnl-route-3-dev libkrb5-dev liboath-dev libradcli-dev libprotobuf-c0-dev libtalloc-dev libhttp-parser-dev libpcl1-dev protobuf-c-compiler gperf liblockfile-bin nuttcp libpam-oath libev-dev libgnutls28-dev gnutls-bin
   - git submodule update --init && autoreconf -fvi &&
     ./configure --without-docker-tests && make -j$(nproc) && make check -j$(nproc)
   tags:
@@ -23,11 +28,8 @@ Build/Debian:
 
 Build/Centos7:
   stage: testing
-  image: centos:7
+  image: $CI_REGISTRY/$BUILD_IMAGES_PROJECT:$CENTOS7_BUILD
   script:
-  - yum install -y epel-release
-# not installing gssntlmssp as only kerberos seems to work reliably
-  - yum install -y GeoIP-devel openconnect make git which xz autoconf libtool automake gettext-devel  gnutls-devel libev-devel tcp_wrappers-devel pam-devel lz4-devel libseccomp-devel readline-devel libnl3-devel krb5-devel liboath-devel radcli-devel protobuf-c-devel libtalloc-devel http-parser-devel pcllib-devel protobuf-c gperf lockfile-progs nuttcp lcov uid_wrapper pam_wrapper nss_wrapper socket_wrapper pam_oath gnutls-utils
   - git submodule update --init && autoreconf -fvi &&
     ./configure --without-docker-tests && make -j$(nproc) && make check -j$(nproc)
   tags:
@@ -41,11 +43,10 @@ Build/Centos7:
       - ./*.log
       - ./tests/*.log
 
-Build/Fedora27:
+Build/Fedora:
   stage: testing
-  image: fedora:27
+  image: $CI_REGISTRY/$BUILD_IMAGES_PROJECT:$FEDORA_BUILD
   script:
-  - dnf install -y GeoIP-devel openconnect make git which xz autoconf libtool automake gettext-devel gnutls-devel libev-devel tcp_wrappers-devel pam-devel lz4-devel libseccomp-devel readline-devel libnl3-devel krb5-devel liboath-devel radcli-devel protobuf-c-devel libtalloc-devel http-parser-devel pcllib-devel protobuf-c gperf lockfile-progs nuttcp lcov uid_wrapper pam_wrapper nss_wrapper socket_wrapper gssntlmssp pam_oath gnutls-utils git2cl rubygem-ronn
   - git submodule update --init && autoreconf -fvi &&
     ./configure --disable-maintainer-mode --without-docker-tests --with-werror --enable-code-coverage && make -j$(nproc) && make check
     && make code-coverage-capture &&
@@ -59,30 +60,10 @@ Build/Fedora27:
     untracked: true
     when: always
 
-#Build/Fedora-rawhide:
-#  image: fedora:rawhide
-#  script:
-#  - dnf install -y GeoIP-devel openconnect make git which xz autoconf libtool automake gettext-devel gnutls-devel libev-devel pam-devel lz4-devel libseccomp-devel readline-devel libnl3-devel krb5-devel liboath-devel radcli-devel protobuf-c-devel libtalloc-devel http-parser-devel pcllib-devel protobuf-c gperf lockfile-progs nuttcp lcov uid_wrapper pam_wrapper nss_wrapper socket_wrapper gssntlmssp pam_oath gnutls-utils
-#  - git submodule update --init && autoreconf -fvi &&
-#    ./configure --without-docker-tests --enable-code-coverage && make -j$(nproc) && make check -j$(nproc) && make code-coverage-capture &&
-#    make local-code-coverage-output
-#  tags:
-#  - shared
-#  except:
-#  - tags
-#  artifacts:
-#    expire_in: 1 week
-#    when: on_failure
-#    paths:
-#      - ./*.log
-#      - ./tests/*.log
-
 Build/Centos6:
   stage: testing
-  image: centos:6
+  image: $CI_REGISTRY/$BUILD_IMAGES_PROJECT:$CENTOS6_BUILD
   script:
-  - yum install -y epel-release
-  - yum install -y openconnect make git which xz autoconf libtool automake gettext-devel gnutls30-devel libev-devel tcp_wrappers-devel pam-devel lz4-devel libseccomp-devel readline-devel libnl3-devel krb5-devel liboath-devel radcli-devel protobuf-c-devel libtalloc-devel http-parser-devel pcllib-devel protobuf-c gperf lockfile-progs nuttcp uid_wrapper pam_wrapper nss_wrapper socket_wrapper gssntlmssp pam_oath gnutls-utils
   - sed -i 's/AM_PROG_AR//g' configure.ac
   - git submodule update --init && autoreconf -fvi
   - CFLAGS="$CFLAGS -I/usr/include/libev -I/usr/include/gnutls30" LIBGNUTLS_LIBS="-L/usr/lib64/gnutls30/ -lgnutls" PKG_CONFIG_LIBDIR="/usr/lib64/gnutls30/pkgconfig:/usr/lib64/pkgconfig" ./configure --disable-systemd --enable-local-libopts --without-docker-tests && make && make check -j$(nproc)
@@ -99,10 +80,8 @@ Build/Centos6:
 
 Build/minimal:
   stage: testing
-  image: centos:7
+  image: $CI_REGISTRY/$BUILD_IMAGES_PROJECT:$CENTOS7_BUILD
   script:
-  - yum install -y epel-release
-  - yum install -y openconnect git make which xz autoconf libtool automake gettext-devel gnutls-devel libev-devel tcp_wrappers-devel pam-devel lz4-devel libseccomp-devel readline-devel libnl3-devel krb5-devel liboath-devel radcli-devel protobuf-c-devel libtalloc-devel http-parser-devel pcllib-devel protobuf-c gperf lockfile-progs nuttcp lcov uid_wrapper pam_wrapper nss_wrapper socket_wrapper gssntlmssp pam_oath gnutls-utils
   - git submodule update --init && autoreconf -fvi &&
     ./configure --without-docker-tests --without-libnl --without-liboath --without-pam --without-radius --without-utmp --without-libwrap --without-http-parser --without-lz4 --without-gssapi --without-pcl-lib --without-protobuf && make -j$(nproc) && make check -j$(nproc)
   tags:
@@ -118,9 +97,8 @@ Build/minimal:
 
 asan/Fedora:
   stage: testing
-  image: fedora:27
+  image: $CI_REGISTRY/$BUILD_IMAGES_PROJECT:$FEDORA_BUILD
   script:
-  - dnf install -y openconnect git which make xz autoconf libtool automake gettext-devel libasan-static libasan gnutls-devel libev-devel tcp_wrappers-devel pam-devel lz4-devel libseccomp-devel readline-devel libnl3-devel krb5-devel liboath-devel radcli-devel protobuf-c-devel libtalloc-devel http-parser-devel pcllib-devel protobuf-c gperf lockfile-progs nuttcp lcov uid_wrapper pam_wrapper nss_wrapper socket_wrapper gssntlmssp pam_oath gnutls-utils
   - git submodule update --init && autoreconf -fvi && CFLAGS="-fsanitize=address -g -O2" LDFLAGS="-static-libasan" &&
     ./configure --without-docker-tests && make -j$(nproc) && make check -j$(nproc)
 
@@ -137,9 +115,8 @@ asan/Fedora:
 
 static-analyzers/Fedora:
   stage: testing
-  image: fedora:27
+  image: $CI_REGISTRY/$BUILD_IMAGES_PROJECT:$FEDORA_BUILD
   script:
-  - dnf install -y openconnect git which make xz autoconf libtool automake gettext-devel gnutls-devel libev-devel tcp_wrappers-devel pam-devel lz4-devel libseccomp-devel readline-devel libnl3-devel krb5-devel liboath-devel radcli-devel protobuf-c-devel libtalloc-devel http-parser-devel pcllib-devel protobuf-c clang clang-analyzer cppcheck gperf
   - autoreconf -fvi
   - scan-build ./configure
   - scan-build --status-bugs -o scan-build-src make -j$(nproc)
@@ -175,13 +152,14 @@ Build/FreeBSD:
 
 pages:
   stage: deploy
+  image: $CI_REGISTRY/$BUILD_IMAGES_PROJECT:$FEDORA_BUILD
   script:
     mkdir -p public/coverage && make V=1 CODE_COVERAGE_OUTPUT_DIRECTORY=public/coverage CODE_COVERAGE_BRANCH_COVERAGE=1 code-coverage-capture &&
     make CODE_COVERAGE_OUTPUT_DIRECTORY=public/coverage local-code-coverage-output
   tags:
   - shared
   dependencies:
-  - Build/Fedora27
+  - Build/Fedora
 #  only:
 #  - master
   artifacts:
